@@ -52,6 +52,9 @@ class GameViewModel(
     private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
+    private val _casualMode = MutableStateFlow(false)
+    val casualMode: StateFlow<Boolean> = _casualMode.asStateFlow()
+
     private val _state = MutableStateFlow(GameUiState(mistakesAllowed = difficulty.mistakes))
     val state: StateFlow<GameUiState> = _state.asStateFlow()
 
@@ -232,9 +235,12 @@ class GameViewModel(
         if (placed.correct) {
             if (AUTO_CLEAR_NOTES) next = next.clearNotesFromPeers(p, digit)
         } else {
-            // A wrong guess stays in the cell, drawn inverted, until it is
-            // overwritten or erased.
-            next = next.copy(mistakes = next.mistakes + 1)
+            // casual mode does not track mistakes
+            if (!_casualMode.value) {
+                // A wrong guess stays in the cell, drawn inverted, until it is
+                // overwritten or erased.
+                next = next.copy(mistakes = next.mistakes + 1)
+            }
         }
 
         _state.value = next.recount()
@@ -300,7 +306,7 @@ class GameViewModel(
      * while the app is backgrounded - both match the Flutter build.
      */
     fun startTimer() {
-        if (timerJob != null) return
+        if (timerJob != null || _casualMode.value) return
 
         timerJob = viewModelScope.launch {
             while (isActive) {
@@ -332,6 +338,10 @@ class GameViewModel(
         stopTimer()
         _elapsed.value = 0
         paused = false
+    }
+
+    fun setCasualMode(enabled: Boolean) {
+        _casualMode.value = enabled
     }
 
     /** Peers highlight unconditionally in this build - see [HIGHLIGHT_PEERS]. */

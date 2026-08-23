@@ -41,17 +41,23 @@ import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun GameScreen(
     onBack: () -> Unit,
     onExit: () -> Unit,
     viewModel: GameViewModel = viewModel(factory = GameViewModel.Factory),
+    casualMode: Boolean = false,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // The clock is collected on its own so a tick never redraws the board.
     val elapsed by viewModel.elapsed.collectAsStateWithLifecycle()
+
+    LaunchedEffect(casualMode){
+        viewModel.setCasualMode(casualMode)
+    }
 
     var menuOpen by remember { mutableStateOf(false) }
     var confirmingQuit by remember { mutableStateOf(false) }
@@ -66,19 +72,21 @@ fun GameScreen(
                     }
                 },
                 actions = {
-                    Readout(formatTime(elapsed))
+                    if (!casualMode) {
+                        Readout(formatTime(elapsed))
 
-                    Readout("${state.mistakes}/${state.mistakesAllowed}")
+                        Readout("${state.mistakes}/${state.mistakesAllowed}")
 
-                    IconButton(
-                        onClick = {
-                            viewModel.pauseTimer()
-                            menuOpen = true
-                            confirmingQuit = false
-                        },
-                        modifier = Modifier.padding(end = 4.dp),
-                    ) {
-                        Icon(painterResource(R.drawable.ic_pause), contentDescription = "Pause")
+                        IconButton(
+                            onClick = {
+                                viewModel.pauseTimer()
+                                menuOpen = true
+                                confirmingQuit = false
+                            },
+                            modifier = Modifier.padding(end = 4.dp),
+                        ) {
+                            Icon(painterResource(R.drawable.ic_pause), contentDescription = "Pause")
+                        }
                     }
                 },
             )

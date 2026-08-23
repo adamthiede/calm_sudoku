@@ -36,13 +36,18 @@ import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.cards.CardMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
+import com.mudita.mmd.components.switcher.SwitchMMD
 
 @Composable
 fun OptionsScreen(
     onBack: () -> Unit,
-    onPlay: (Difficulty) -> Unit,
-    onResume: (Difficulty) -> Unit,
-) {
+    onPlay: (Difficulty, Boolean) -> Unit,
+    onResume: (Difficulty, Boolean) -> Unit,
+    onCasualModeChanged: (Boolean) -> Unit = {},
+
+    ) {
+    var casualMode by remember { mutableStateOf(false) }
+
     // Not persisted - the Flutter build built a fresh OptionsViewModel per visit.
     var difficulty by rememberSaveable { mutableStateOf(Difficulty.EASY) }
 
@@ -87,6 +92,20 @@ fun OptionsScreen(
                     )
                 }
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextMMD("Casual Mode", style = MaterialTheme.typography.bodyMedium)
+                SwitchMMD(
+                    checked = casualMode,
+                    onCheckedChange = {
+                        casualMode = it
+                        onCasualModeChanged(it)
+                    },
+                )
+            }
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -96,14 +115,14 @@ fun OptionsScreen(
 
                 if (resumable == null) {
                     ButtonMMD(
-                        onClick = { onPlay(difficulty) },
+                        onClick = { onPlay(difficulty, casualMode) },
                         modifier = Modifier.fillMaxWidth().height(CTA_HEIGHT),
                     ) {
                         TextMMD("Play", style = MaterialTheme.typography.titleMedium)
                     }
                 } else {
                     ButtonMMD(
-                        onClick = { onResume(difficulty) },
+                        onClick = { onResume(difficulty, casualMode) },
                         modifier = Modifier.fillMaxWidth().height(CTA_HEIGHT),
                     ) {
                         TextMMD(
@@ -115,7 +134,7 @@ fun OptionsScreen(
                     // The saved game survives this: only the next Save & Quit at
                     // this difficulty replaces it.
                     OutlinedButtonMMD(
-                        onClick = { onPlay(difficulty) },
+                        onClick = { onPlay(difficulty, casualMode) },
                         modifier = Modifier.fillMaxWidth().height(CTA_HEIGHT),
                     ) {
                         TextMMD("New Game", style = MaterialTheme.typography.titleMedium)
