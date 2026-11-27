@@ -92,9 +92,13 @@ Requires JDK 17+ and an Android SDK with platform 35. `local.properties` must
 point `sdk.dir` at the SDK (it is gitignored and generated on first build by
 Android Studio).
 
+CI release builds are signed from four repository secrets:
+`RELEASE_KEYSTORE_BASE64` (base64-encoded JKS/PKCS12), `RELEASE_KEYSTORE_PASSWORD`,
+`RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`.
+
 A debug build cannot upgrade a release-signed install of the same
 `applicationId`. If `adb` refuses with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`,
-run `adb uninstall com.cbaier33.sudoku` once first.
+run `adb uninstall com.adamthiede.sudoku` once first.
 
 MMD 1.0.2 is compiled against **material3 1.3.1** and uses
 `LocalRippleConfiguration`, which was experimental in that line. `material3` and
