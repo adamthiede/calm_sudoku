@@ -3,7 +3,7 @@
 #
 # A debug-signed build cannot upgrade a release-signed one (and the reverse),
 # so if adb rejects the install with INSTALL_FAILED_UPDATE_INCOMPATIBLE, run
-# `adb uninstall com.cbaier33.sudoku` once and try again.
+# `adb uninstall com.adamthiede.sudoku` once and try again.
 set -e
 
 cd "$(dirname "$0")/.."

@@ -18,13 +18,14 @@ object Routes {
     const val HOME = "home"
     const val OPTIONS = "options"
     const val STATS = "stats"
-    const val GAME = "game/{difficulty}?resume={resume}"
+    const val GAME = "game/{difficulty}?resume={resume}&casualMode={casualMode}"
 
-    fun game(difficulty: Difficulty, resume: Boolean = false) =
-        "game/${difficulty.name}?resume=$resume"
+    fun game(difficulty: Difficulty, resume: Boolean = false, casualMode: Boolean = false) =
+        "game/${difficulty.name}?resume=$resume&casualMode=$casualMode"
 
     const val ARG_DIFFICULTY = "difficulty"
     const val ARG_RESUME = "resume"
+    const val ARG_CASUAL_MODE = "casualMode"
 }
 
 /**
@@ -53,9 +54,9 @@ fun SudokuApp() {
         composable(Routes.OPTIONS) {
             OptionsScreen(
                 onBack = { navController.popBackStack() },
-                onPlay = { difficulty -> navController.navigate(Routes.game(difficulty)) },
-                onResume = { difficulty ->
-                    navController.navigate(Routes.game(difficulty, resume = true))
+                onPlay = { difficulty, casualMode -> navController.navigate(Routes.game(difficulty, casualMode = casualMode)) },
+                onResume = { difficulty, casualMode ->
+                    navController.navigate(Routes.game(difficulty, resume = true, casualMode = casualMode))
                 },
             )
         }
@@ -68,13 +69,18 @@ fun SudokuApp() {
                     type = NavType.BoolType
                     defaultValue = false
                 },
+                navArgument(Routes.ARG_CASUAL_MODE){
+                    type = NavType. BoolType
+                    defaultValue = false
+                },
             ),
-        ) {
+        ) { backStackEntry ->
             GameScreen(
                 onBack = { navController.popBackStack() },
                 // Quit and Save & Quit both drop straight back to the title,
                 // matching Navigator.popUntil((route) => route.isFirst).
                 onExit = { navController.popBackStack(Routes.HOME, inclusive = false) },
+                casualMode = backStackEntry.arguments?.getBoolean(Routes.ARG_CASUAL_MODE) ?:false,
             )
         }
 

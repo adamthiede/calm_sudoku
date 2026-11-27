@@ -1,5 +1,5 @@
 [versions]
-agp = "8.7.3"
+agp = "8.13.2"
 kotlin = "2.0.21"
 
 # MMD 1.0.2 is compiled against material3 1.3.1 / compose-ui 1.7.x and uses

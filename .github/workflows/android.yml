@@ -1,0 +1,120 @@
+name: Android
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Build debug APK
+        run: bash ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: calmsudoku-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  release-build:
+    if: github.event_name == 'push' || github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Resolve release tag
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            echo "tag=$(date -u +%Y-%m-%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          missing=0
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing RELEASE_${name} secret"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed release APK
+        env:
+          SIGNING_STORE_FILE: ${{ runner.temp }}/release.jks
+          SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: bash ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Publish APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_SHA: ${{ github.sha }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          if [ "$EVENT_NAME" = "push" ]; then
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "::error::Release $TAG already exists"
+              exit 1
+            fi
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes "$APK"
+          else
+            gh release upload "$TAG" "$APK" --clobber
+          fi

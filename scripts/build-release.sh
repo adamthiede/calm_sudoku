@@ -1,8 +1,8 @@
 #!/bin/sh
 # Build a signed release APK and collect it in release/ as calm-sudoku-<version>.apk,
-# alongside a .sha1 of the same name. Signing keys come from key.properties in
-# the repository root; without it Gradle falls back to the debug keystore and
-# this script says so rather than shipping a debug-signed APK by surprise.
+# alongside a .sha1 of the same name. Signing keys come from key.properties or
+# the SIGNING_* environment variables; without either Gradle falls back to the
+# debug keystore and this script says so rather than shipping one by surprise.
 set -e
 
 cd "$(dirname "$0")/.."
@@ -14,8 +14,8 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-if [ ! -f key.properties ]; then
-    echo "WARNING: no key.properties - this APK will be debug-signed and cannot" >&2
+if [ ! -f key.properties ] && { [ -z "$SIGNING_STORE_FILE" ] || [ -z "$SIGNING_STORE_PASSWORD" ] || [ -z "$SIGNING_KEY_ALIAS" ] || [ -z "$SIGNING_KEY_PASSWORD" ]; }; then
+    echo "WARNING: no signing material - this APK will be debug-signed and cannot" >&2
     echo "         upgrade an installed release build." >&2
 fi
 

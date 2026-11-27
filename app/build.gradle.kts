@@ -7,8 +7,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// Drop a key.properties in the repository root to sign real releases. It is
-// gitignored - see "Release builds" in the README for the keys it holds.
+// Release signing comes from key.properties locally, or from SIGNING_* env
+// variables in CI. key.properties is gitignored and holds the same four values.
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
@@ -16,12 +16,25 @@ val keystoreProperties = Properties().apply {
     }
 }
 
+val signingEnvNames = listOf(
+    "SIGNING_STORE_FILE",
+    "SIGNING_STORE_PASSWORD",
+    "SIGNING_KEY_ALIAS",
+    "SIGNING_KEY_PASSWORD",
+)
+val signingEnv = signingEnvNames.associateWith { System.getenv(it).orEmpty() }
+val hasEnvSigning = signingEnv.values.all { it.isNotBlank() }
+check(!signingEnv.values.any { it.isNotBlank() } || hasEnvSigning) {
+    "Incomplete release signing environment; set ${signingEnvNames.joinToString(", ")}"
+}
+val hasKeystoreSigning = keystorePropertiesFile.exists() && !hasEnvSigning
+
 android {
     namespace = "com.cbaier33.sudoku"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.cbaier33.sudoku"
+        applicationId = "com.adamthiede.sudoku"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -29,7 +42,14 @@ android {
     }
 
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
+        if (hasEnvSigning) {
+            create("release") {
+                storeFile = file(signingEnv.getValue("SIGNING_STORE_FILE"))
+                storePassword = signingEnv.getValue("SIGNING_STORE_PASSWORD")
+                keyAlias = signingEnv.getValue("SIGNING_KEY_ALIAS")
+                keyPassword = signingEnv.getValue("SIGNING_KEY_PASSWORD")
+            }
+        } else if (hasKeystoreSigning) {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
@@ -41,9 +61,10 @@ android {
 
     buildTypes {
         release {
-            // Without a keystore, fall back to the debug keys so that an
-            // unsigned `assembleRelease` still produces an installable APK.
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            // Without signing material, fall back to the debug keys so that a
+            // local `assembleRelease` still produces an installable APK. CI
+            // supplies all four SIGNING_* variables and signs with the real key.
+            signingConfig = if (hasEnvSigning || hasKeystoreSigning) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
